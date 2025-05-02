@@ -35,6 +35,6 @@ jobs:
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: module_state
+          name: ${{ env.MOD_NAME }}
           path: |
             ./build/mods/${{ env.MOD_NAME }}/
