@@ -1,0 +1,14 @@
+[package]
+name = "commonlibsse_ng_re_ext"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+commonlibsse_ng = { workspace = true, features = ["derive"] }
+snafu = { workspace = true }
+tracing = { workspace = true, optional = true }
+
+[features]
+tracing = ["dep:tracing", "commonlibsse_ng/tracing"]
+full = ["tracing"]
