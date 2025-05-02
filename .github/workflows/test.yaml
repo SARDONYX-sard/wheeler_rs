@@ -34,7 +34,7 @@ jobs:
       - name: Install nextest(Parallel Test Execution CLI)
         uses: taiki-e/install-action@nextest
       - name: Test
-        run: cargo nextest run --target ${{ matrix.job.target }} --features test
+        run: cargo nextest run --target ${{ matrix.job.target }}
 
   ub-test:
     strategy:
@@ -65,4 +65,4 @@ jobs:
       # How to pass the test cmc args: https://github.com/rust-lang/miri/pull/1415/files
       - name: Search undefined behavior
         run: |
-          cargo +nightly miri nextest run --no-fail-fast --target ${{ matrix.job.target }} --features test -- -- --filter re::
+          cargo +nightly miri nextest run --no-fail-fast --target ${{ matrix.job.target }} -- -- --filter re::
