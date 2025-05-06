@@ -18,9 +18,12 @@ commonlibsse_ng_re_ext = { path = "../commonlibsse_ng_re_ext" }
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61.1", features = [
   "Win32",
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D11",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_System",
   "Win32_UI",
   "Win32_UI_Shell",
-  "Win32_System",
 ] }
 
 [dev-dependencies]

@@ -1,1 +1,1 @@
-// pub mod BSWin32GamepadDevice;
+pub mod BSRenderManager;

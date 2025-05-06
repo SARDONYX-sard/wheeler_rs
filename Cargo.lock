@@ -235,6 +235,7 @@ dependencies = [
  "commonlibsse_ng",
  "snafu",
  "tracing",
+ "windows 0.61.1",
 ]
 
 [[package]]
