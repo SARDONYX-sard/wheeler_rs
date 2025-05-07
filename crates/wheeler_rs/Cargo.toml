@@ -8,21 +8,12 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-commonlibsse_ng = { git = "https://github.com/SARDONYX-sard/commonlibsse_ng", rev = "db98f80", features = [
-  "derive",
-] }
-tracing = { version = "0.1.41", optional = true } # Log
+commonlibsse_ng = { workspace = true, features = ["derive"] }
+tracing = { version = "0.1.41", optional = true }
 
 # workspace members
 wheeler_core = { path = "../wheeler_core" }
 
-[target.'cfg(windows)'.dependencies]
-windows = { version = "0.61.1", features = [
-  "Win32",
-  "Win32_UI",
-  "Win32_UI_Shell",
-  "Win32_System",
-] }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }

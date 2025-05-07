@@ -1392,7 +1392,6 @@ dependencies = [
  "pretty_assertions",
  "tracing",
  "wheeler_core",
- "windows 0.61.1",
 ]
 
 [[package]]

@@ -25,6 +25,8 @@ serde = { version = "1.0.219" }                                                 
 snafu = { version = "0.8.5" }                                                                   # To define error types.
 tracing = { version = "0.1.41" }
 
+windows = { version = "0.61.1" }
+
 # Dev dependencies
 pretty_assertions = "1.4.1" # Color diff assertion
 
