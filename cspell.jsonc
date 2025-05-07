@@ -4,6 +4,7 @@
     "cdylib",
     "commonlibsse",
     "DXGI",
+    "GWLP_WNDPROC",
     "IDXGI",
     "imgui",
     "Magicka",
@@ -18,6 +19,7 @@
     "VTABLE",
     "Vtbl",
     "warhammer",
-    "WEAP"
+    "WEAP",
+    "WNDPROC"
   ]
 }

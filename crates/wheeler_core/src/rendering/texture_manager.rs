@@ -1,7 +1,7 @@
 use core::{ptr::NonNull, str::FromStr};
 use std::{
     path::{Path, PathBuf},
-    sync::{LazyLock, OnceLock},
+    sync::LazyLock,
 };
 
 use commonlibsse_ng::re::TESForm::TESForm;
@@ -17,15 +17,15 @@ use windows::Win32::Graphics::{
     Direct3D11::{
         D3D11_BIND_SHADER_RESOURCE, D3D11_SHADER_RESOURCE_VIEW_DESC,
         D3D11_SHADER_RESOURCE_VIEW_DESC_0, D3D11_SUBRESOURCE_DATA, D3D11_TEX2D_SRV,
-        D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT, ID3D11Device, ID3D11ShaderResourceView,
+        D3D11_TEXTURE2D_DESC, D3D11_USAGE_DEFAULT, ID3D11ShaderResourceView,
     },
     Dxgi::Common::{DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SAMPLE_DESC},
 };
 
+use super::render_manager::DEVICE;
+
 const ICON_DIRECTORY: &str = "Data/SKSE/Plugins/Wheeler/resources/icons";
 const ICON_CUSTOM_DIRECTORY: &str = "Data/SKSE/Plugins/Wheeler/resources/icons_custom";
-
-static DEVICE: OnceLock<ID3D11Device> = OnceLock::new();
 
 #[derive(Debug, snafu::Snafu)]
 enum TextureError {
@@ -56,7 +56,7 @@ enum TextureError {
     },
 }
 
-pub struct Texture {}
+pub struct Texture;
 
 impl Texture {
     pub fn init() {
@@ -181,50 +181,61 @@ impl Texture {
     }
 
     fn load_custom_icon_images() {
-        let tes_data_handler = TESDataHandler::get_singleton();
-        if tes_data_handler.is_none() {
+        let Some(handler) = TESDataHandler::get_singleton() else {
+            tracing::error!("Failed to get `TESDataHandler`");
             return;
-        }
-        let handler = tes_data_handler.unwrap();
+        };
 
-        let walk_dir = jwalk::WalkDir::new(ICON_CUSTOM_DIRECTORY)
+        for entry in jwalk::WalkDir::new(ICON_CUSTOM_DIRECTORY)
             .into_iter()
-            .filter_map(Result::ok);
-
-        for entry in walk_dir {
+            .filter_map(Result::ok)
+        {
             let path = entry.path();
 
-            let is_svg = path
-                .extension()
-                .map(|e| e.eq_ignore_ascii_case("svg"))
-                .unwrap_or_default();
-            if !is_svg {
+            if !is_svg_file(&path) {
                 continue;
             }
 
             let file_name = path.file_name().unwrap().to_string_lossy();
-
-            let image = Self::load_texture_from_file(path.as_path()).unwrap();
-
-            if let Some(rest) = file_name.strip_prefix("FID_") {
-                if let Some((plugin, hex_id)) =
-                    rest.split_once("_0x").or_else(|| rest.split_once("_0X"))
-                {
-                    if let Ok(form_id) = u32::from_str_radix(hex_id.trim_end_matches(".svg"), 16) {
-                        if let Some(form) = handler
-                            .lookup_form(FormID::new(form_id), plugin)
-                            .map(|form| unsafe { form.as_ref() })
-                        {
-                            ICON_STRUCT_FORM_ID.insert(form.formID, image);
-                        }
-                    }
+            let image = match Self::load_texture_from_file(path.as_path()) {
+                Ok(img) => img,
+                Err(err) => {
+                    tracing::error!("{err}");
+                    continue;
                 }
-            } else if let Some(keyword) = file_name.strip_prefix("KWD_") {
-                let keyword = keyword.trim_end_matches(".svg");
-                ICON_STRUCT_KEYWORD.insert(keyword.to_string(), image);
+            };
+
+            if let Some((plugin, form_id)) = parse_form_id_from_filename(&file_name) {
+                if let Some(form) = handler
+                    .lookup_form(FormID::new(form_id), plugin)
+                    .map(|form| unsafe { form.as_ref() })
+                {
+                    ICON_STRUCT_FORM_ID.insert(form.formID, image);
+                }
+            } else if let Some(keyword) = parse_keyword_from_filename(&file_name) {
+                ICON_STRUCT_KEYWORD.insert(keyword, image);
             }
         }
     }
+}
+
+fn is_svg_file(path: &std::path::Path) -> bool {
+    path.extension()
+        .map(|ext| ext.eq_ignore_ascii_case("svg"))
+        .unwrap_or(false)
+}
+
+fn parse_form_id_from_filename(file_name: &str) -> Option<(&str, u32)> {
+    let rest = file_name.strip_prefix("FID_")?;
+    let (plugin, hex_id) = rest.split_once("_0x").or_else(|| rest.split_once("_0X"))?;
+    let form_id = u32::from_str_radix(hex_id.trim_end_matches(".svg"), 16).ok()?;
+    Some((plugin, form_id))
+}
+
+fn parse_keyword_from_filename(file_name: &str) -> Option<String> {
+    file_name
+        .strip_prefix("KWD_")
+        .map(|kw| kw.trim_end_matches(".svg").to_string())
 }
 
 static ICON_STRUCT: LazyLock<DashMap<IconImageType, Image>> = LazyLock::new(DashMap::new);
