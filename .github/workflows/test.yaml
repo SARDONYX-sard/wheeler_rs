@@ -34,7 +34,7 @@ jobs:
       - name: Install nextest(Parallel Test Execution CLI)
         uses: taiki-e/install-action@nextest
       - name: Test
-        run: cargo nextest run --target ${{ matrix.job.target }}
+        run: cargo nextest run --workspace --target ${{ matrix.job.target }}
 
   ub-test:
     strategy:
@@ -61,8 +61,9 @@ jobs:
       - name: Install nextest(Parallel Test Execution CLI)
         uses: taiki-e/install-action@nextest
 
-      # use `--filter`: Because miri does not support OS API.
+      # Only wheeler_core: the other crates call C/OS code (Dear ImGui, D3D11,
+      # the game) that Miri cannot execute.
       # How to pass the test cmc args: https://github.com/rust-lang/miri/pull/1415/files
       - name: Search undefined behavior
         run: |
-          cargo +nightly miri nextest run --no-fail-fast --target ${{ matrix.job.target }}
+          cargo +nightly miri nextest run --no-fail-fast -p wheeler_core --target ${{ matrix.job.target }}

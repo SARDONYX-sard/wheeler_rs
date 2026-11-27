@@ -100,13 +100,13 @@ fn build_main_dll(args: BuildArgs) -> Result<()> {
     if args.release {
         run_command(
             "cargo",
-            &["build", "-p", DLL_NAME, "--features", "full", "--release"],
+            &["build", "-p", DLL_NAME, "--release"],
             None,
         )?;
     } else {
         run_command(
             "cargo",
-            &["build", "-p", DLL_NAME, "--features", "full"],
+            &["build", "-p", DLL_NAME],
             None,
         )?;
     };

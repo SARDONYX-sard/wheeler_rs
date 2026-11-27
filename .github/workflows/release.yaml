@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  MOD_NAME: wheeler_rs
+  MOD_NAME: wheeler_re
 
 jobs:
   build_example:
