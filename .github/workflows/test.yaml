@@ -1,69 +1,41 @@
-name: Test(Cargo)
+name: Test
 
 on:
   push:
     branches: ["main"]
   pull_request:
-    branches: ["*"]
   workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    strategy:
-      fail-fast: false
-      matrix:
-        job:
-          # - { target: aarch64-apple-darwin, os: macos-latest }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest }
-          # - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
-    runs-on: ${{ matrix.job.os }}
-
+  # Every action (also inside .github/actions/*) must be pinned in actions.lock.
+  # After changing any `uses:`, run `gh actions-lock` and commit the lockfile.
+  actions-lock:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4.2.2
-      - name: Rust setup
-        uses: dtolnay/rust-toolchain@stable
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.7.8
-        with:
-          prefix-key: cargo-debug-${{ matrix.job.target }}
+      - uses: actions/checkout@v7.0.1
+      - uses: github/gh-actions-lock@verify/v0.5.1
 
-      # https://nexte.st/docs/installation/pre-built-binaries/#using-nextest-in-github-actions
-      - name: Install nextest(Parallel Test Execution CLI)
-        uses: taiki-e/install-action@nextest
-      - name: Test
-        run: cargo nextest run --workspace --target ${{ matrix.job.target }}
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/setup-rust
+      # default-members is only the DLL crate, so test the whole workspace.
+      - run: cargo test --workspace --locked
 
   ub-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        job:
-          # - { target: aarch64-apple-darwin, os: macos-latest }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest }
-          # - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
-    runs-on: ${{ matrix.job.os }}
-
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4.2.2
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.7.8
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/setup-rust
         with:
-          prefix-key: cargo-debug-miri-x86_64_unknown-linux-gnu
-      - name: Install Miri
-        run: |
-          rustup toolchain install nightly --component miri
-          rustup override set nightly
-          cargo miri setup
-      # https://nexte.st/docs/installation/pre-built-binaries/#using-nextest-in-github-actions
-      - name: Install nextest(Parallel Test Execution CLI)
-        uses: taiki-e/install-action@nextest
-
+          toolchain: nightly
+          components: miri
+          cache-key: miri
+      - run: cargo miri setup
       # Only wheeler_core: the other crates call C/OS code (Dear ImGui, D3D11,
       # the game) that Miri cannot execute.
-      # How to pass the test cmc args: https://github.com/rust-lang/miri/pull/1415/files
-      - name: Search undefined behavior
-        run: |
-          cargo +nightly miri nextest run --no-fail-fast -p wheeler_core --target ${{ matrix.job.target }}
+      - run: cargo miri test -p wheeler_core --locked
