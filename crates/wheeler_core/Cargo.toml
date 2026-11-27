@@ -1,0 +1,15 @@
+[package]
+name = "wheeler_core"
+description = "Wheeler logic that does not depend on the game: config, animation, layout"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }

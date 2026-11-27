@@ -1,0 +1,31 @@
+[package]
+name = "wheeler_dx11"
+description = "Dear ImGui Direct3D 11 renderer and texture loading (game independent)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+imgui = { workspace = true }
+resvg = { workspace = true }
+rex_com = { workspace = true }
+
+[dependencies.windows-sys]
+workspace = true
+features = ["Win32_Foundation", "Win32_System_LibraryLoader"]
+
+[dev-dependencies]
+wheeler_core = { path = "../wheeler_core" }
+wheeler_imgui = { path = "../wheeler_imgui" }
+
+[dev-dependencies.windows-sys]
+workspace = true
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_LibraryLoader",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+]
