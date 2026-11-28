@@ -148,9 +148,12 @@ impl SettingsWindow {
             .build(|| {
                 // The atlas font is large (it also draws the wheel text);
                 // shrink it for this window only.
+                // ImGui asserts `scale > 0`: a zero-height viewport (minimized
+                // game window) or a bad INI value must not reach it.
                 let base = unsafe { (*imgui::sys::igGetFont()).FontSize };
-                if base > 0.0 {
-                    ui.set_window_font_scale(look.font_size * scale / base);
+                let font_scale = look.font_size * scale / base;
+                if font_scale.is_finite() && font_scale > 0.0 {
+                    ui.set_window_font_scale(font_scale);
                 }
                 self.draw_contents(ui, &mut events);
             });

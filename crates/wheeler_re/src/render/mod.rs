@@ -27,7 +27,25 @@ struct RenderState {
     imgui: imgui::Context,
     renderer: wheeler_dx11::Renderer,
     hwnd: HWND,
+    /// Swap chain size at init: the fallback when the output window reports
+    /// an empty client area (seen with some overlays / upscalers).
+    buffer_size: [f32; 2],
     last_frame: Instant,
+}
+
+impl RenderState {
+    /// Size of the game's drawable area; `None` while it is empty.
+    fn display_size(&self) -> Option<[f32; 2]> {
+        let mut rect: RECT = unsafe { core::mem::zeroed() };
+        unsafe { GetClientRect(self.hwnd, &mut rect) };
+        let client = [
+            (rect.right - rect.left) as f32,
+            (rect.bottom - rect.top) as f32,
+        ];
+        [client, self.buffer_size]
+            .into_iter()
+            .find(|[w, h]| *w > 0.0 && *h > 0.0)
+    }
 }
 
 // Only ever touched from the render thread (D3D init and Present hooks).
@@ -79,10 +97,7 @@ pub fn install() {
 /// (C++ uses the ImGui viewport for `Config::OffsetSizingToViewport`).
 pub fn viewport_height() -> Option<f32> {
     let guard = STATE.lock().unwrap_or_else(|e| e.into_inner());
-    let state = guard.as_ref()?;
-    let mut rect: RECT = unsafe { core::mem::zeroed() };
-    unsafe { GetClientRect(state.hwnd, &mut rect) };
-    Some((rect.bottom - rect.top) as f32)
+    guard.as_ref()?.display_size().map(|[_, h]| h)
 }
 
 /// C++ `RenderManager::MessageCallback` (kDataLoaded) plus `Texture::Init`.
@@ -173,6 +188,10 @@ fn init_render() -> Result<(), String> {
         imgui,
         renderer: dx11,
         hwnd,
+        buffer_size: [
+            desc.buffer_desc.width as f32,
+            desc.buffer_desc.height as f32,
+        ],
         last_frame: Instant::now(),
     });
     INITIALIZED.store(true, Ordering::Release);
@@ -279,13 +298,13 @@ extern "C" fn dxgi_present_thunk(p1: u32) {
         .as_secs_f32()
         .max(1.0 / 1_000_000.0);
     state.last_frame = now;
-    let mut rect: RECT = unsafe { core::mem::zeroed() };
-    unsafe { GetClientRect(state.hwnd, &mut rect) };
+    // Minimized / zero-sized: nothing to draw, and every size derived from
+    // the viewport height would be 0 (ImGui asserts on some of them).
+    let Some(display_size) = state.display_size() else {
+        return;
+    };
     let io = state.imgui.io_mut();
-    io.display_size = [
-        (rect.right - rect.left) as f32,
-        (rect.bottom - rect.top) as f32,
-    ];
+    io.display_size = display_size;
     io.delta_time = delta;
     crate::settings_menu::prepare_frame(io);
 

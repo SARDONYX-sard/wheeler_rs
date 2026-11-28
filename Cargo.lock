@@ -184,7 +184,7 @@ checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 [[package]]
 name = "core-util"
 version = "0.1.0"
-source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=bb47b92#bb47b92931819f58272e75c558c7f34778c12579"
+source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=9fac4fc#9fac4fc5557dc30224b0def4028720478a6a53cb"
 
 [[package]]
 name = "crc32fast"
@@ -198,7 +198,7 @@ dependencies = [
 [[package]]
 name = "cstd"
 version = "0.1.0"
-source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=bb47b92#bb47b92931819f58272e75c558c7f34778c12579"
+source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=9fac4fc#9fac4fc5557dc30224b0def4028720478a6a53cb"
 dependencies = [
  "core-util",
 ]
@@ -343,7 +343,7 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 [[package]]
 name = "libskyrim"
 version = "1.1.0"
-source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=bb47b92#bb47b92931819f58272e75c558c7f34778c12579"
+source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=9fac4fc#9fac4fc5557dc30224b0def4028720478a6a53cb"
 dependencies = [
  "bitflags 2.13.2",
  "bytemuck",
@@ -360,7 +360,7 @@ dependencies = [
 [[package]]
 name = "libskyrim-macros"
 version = "0.1.0"
-source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=bb47b92#bb47b92931819f58272e75c558c7f34778c12579"
+source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=9fac4fc#9fac4fc5557dc30224b0def4028720478a6a53cb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -526,7 +526,7 @@ dependencies = [
 [[package]]
 name = "rex_com"
 version = "0.1.0"
-source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=bb47b92#bb47b92931819f58272e75c558c7f34778c12579"
+source = "git+https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git?rev=9fac4fc#9fac4fc5557dc30224b0def4028720478a6a53cb"
 
 [[package]]
 name = "rgb"
