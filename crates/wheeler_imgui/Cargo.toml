@@ -1,0 +1,12 @@
+[package]
+name = "wheeler_imgui"
+description = "Wheeler drawing and wheel/entry logic on top of Dear ImGui (game independent)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+imgui = { workspace = true }
+wheeler_core = { path = "../wheeler_core" }

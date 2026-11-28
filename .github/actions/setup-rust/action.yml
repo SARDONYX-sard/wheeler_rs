@@ -1,0 +1,39 @@
+name: Setup Rust
+description: >
+  Rust toolchain via rustup (+ targets / components) and a cargo cache
+  (registry, git deps, target/) keyed by Cargo.lock.
+
+inputs:
+  toolchain:
+    description: rustup toolchain
+    default: stable
+  targets:
+    description: Extra targets, comma separated (e.g. x86_64-pc-windows-msvc)
+    default: ""
+  components:
+    description: Extra components, comma separated (e.g. clippy,rustfmt)
+    default: ""
+  cache-key:
+    description: Extra cache key, to keep caches of different builds apart
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: rustup
+      shell: bash
+      env:
+        TOOLCHAIN: ${{ inputs.toolchain }}
+        TARGETS: ${{ inputs.targets }}
+        COMPONENTS: ${{ inputs.components }}
+      run: |
+        args=(--profile minimal)
+        if [ -n "$TARGETS" ]; then args+=(--target "$TARGETS"); fi
+        if [ -n "$COMPONENTS" ]; then args+=(--component "$COMPONENTS"); fi
+        rustup toolchain install "$TOOLCHAIN" "${args[@]}"
+        rustup default "$TOOLCHAIN"
+
+    - name: cargo cache
+      uses: Swatinem/rust-cache@v2.9.3
+      with:
+        key: ${{ inputs.cache-key }}

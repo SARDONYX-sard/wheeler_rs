@@ -54,8 +54,8 @@ enum DestDir {
 impl DestDir {
     fn path(&self) -> &Path {
         match self {
-            Self::Root => Path::new("./build/mods/wheeler_rs/SKSE/Plugins/"),
-            Self::Mo2 => Path::new("D:/GAME/ModOrganizer Skyrim SE/mods/wheeler_rs/SKSE/Plugins/"),
+            Self::Root => Path::new("./build/mods/wheeler_re/SKSE/Plugins/"),
+            Self::Mo2 => Path::new("D:/GAME/ModOrganizer Skyrim SE/mods/wheeler_re/SKSE/Plugins/"),
         }
     }
 }
@@ -95,20 +95,16 @@ fn main() -> Result<()> {
 fn build_main_dll(args: BuildArgs) -> Result<()> {
     println!("Building dll...");
 
-    const DLL_NAME: &str = "wheeler_rs";
+    const DLL_NAME: &str = "wheeler_re";
 
     if args.release {
         run_command(
             "cargo",
-            &["build", "-p", DLL_NAME, "--features", "full", "--release"],
+            &["build", "-p", DLL_NAME, "--locked", "--release"],
             None,
         )?;
     } else {
-        run_command(
-            "cargo",
-            &["build", "-p", DLL_NAME, "--features", "full"],
-            None,
-        )?;
+        run_command("cargo", &["build", "-p", DLL_NAME, "--locked"], None)?;
     };
 
     let dest_dir = args.dest.unwrap_or(args.dest_mode.path().to_path_buf());

@@ -7,33 +7,22 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  MOD_NAME: wheeler_rs
+  MOD_NAME: wheeler_re
 
 jobs:
-  build_example:
-    strategy:
-      fail-fast: false
-      matrix:
-        job:
-          # - { target: aarch64-apple-darwin, os: macos-latest }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest }
-          # - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
-    runs-on: ${{ matrix.job.os }}
-
+  build:
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4.2.2
-      - name: Rust setup
-        uses: dtolnay/rust-toolchain@stable
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2.7.8
+      - uses: actions/checkout@v7.0.1
+      - uses: $/.github/actions/setup-rust
         with:
-          prefix-key: cargo-debug-${{ matrix.job.target }}
+          cache-key: release
 
       - name: Build dll
         run: cargo xtask build --dest-mode root --release
 
       - name: Upload a Build Artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: ${{ env.MOD_NAME }}
           path: |
