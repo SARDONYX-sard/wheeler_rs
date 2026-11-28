@@ -48,7 +48,7 @@ fn callbacks(action: Action) -> (Callback, Option<Callback>) {
         Action::MoveEntryBack => (wheeler::move_entry_back_in_current_wheel, None),
         Action::MoveWheelForward => (wheeler::move_wheel_forward, None),
         Action::MoveWheelBack => (wheeler::move_wheel_back, None),
-        Action::OpenSettings => (settings_menu::toggle, None),
+        Action::ToggleSettings => (settings_menu::toggle, None),
     }
 }
 

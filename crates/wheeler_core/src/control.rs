@@ -14,6 +14,7 @@ pub const CONTROL_SETTINGS_PATH: &str = "Data\\SKSE\\Plugins\\wheeler\\Controls.
 pub const SECTION_GAMEPAD: &str = "InputBindings.GamePad";
 pub const SECTION_MKB: &str = "InputBindings.MKB";
 pub const SECTION_WHEEL: &str = "Control.Wheel";
+pub const SECTION_SETTINGS_WINDOW: &str = "Settings.Window";
 
 /// Everything a key combo can be bound to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -33,8 +34,8 @@ pub enum Action {
     MoveEntryBack,
     MoveWheelForward,
     MoveWheelBack,
-    /// Opens the settings window (new in the Rust port).
-    OpenSettings,
+    /// Opens or closes the settings window (new in the Rust port).
+    ToggleSettings,
 }
 
 impl Action {
@@ -55,7 +56,7 @@ impl Action {
         Self::MoveEntryBack,
         Self::MoveWheelForward,
         Self::MoveWheelBack,
-        Self::OpenSettings,
+        Self::ToggleSettings,
     ];
 
     /// The `Controls.ini` key.
@@ -76,7 +77,7 @@ impl Action {
             Self::MoveEntryBack => "moveEntryBack",
             Self::MoveWheelForward => "moveWheelForward",
             Self::MoveWheelBack => "moveWheelBack",
-            Self::OpenSettings => "openSettings",
+            Self::ToggleSettings => "toggleSettings",
         }
     }
 
@@ -98,7 +99,7 @@ impl Action {
             Self::MoveEntryBack => "Move entry back (edit mode)",
             Self::MoveWheelForward => "Move wheel forward (edit mode)",
             Self::MoveWheelBack => "Move wheel back (edit mode)",
-            Self::OpenSettings => "Open settings",
+            Self::ToggleSettings => "Toggle settings",
         }
     }
 
@@ -159,7 +160,7 @@ impl InputBindings {
             0,    // open settings (below)
         ]);
         // Left shift + F10.
-        b.combos[Action::OpenSettings.index()] = KeyCombo::chord2(0x2A, 0x44);
+        b.combos[Action::ToggleSettings.index()] = KeyCombo::chord2(0x2A, 0x44);
         b
     };
 
@@ -187,6 +188,8 @@ pub struct WheelControl {
     /// close it on a second press.
     pub toggle_hold_threshold: f32,
     pub hide_game_ui_in_edit_mode: bool,
+    /// Key hints under the "EDIT MODE" banner.
+    pub show_edit_mode_hints: bool,
     /// Seconds allowed between taps of a multi-tap binding.
     pub multi_tap_window: f32,
     /// Wheels (pages) created for a new game / "Reset all wheels".
@@ -201,9 +204,26 @@ impl WheelControl {
         double_activate_disable: true,
         toggle_hold_threshold: 0.25,
         hide_game_ui_in_edit_mode: true,
+        show_edit_mode_hints: true,
         multi_tap_window: 0.25,
         default_wheel_count: 2,
         default_entry_count: 8,
+    };
+}
+
+/// Look of the settings window, in 1080p pixels (scaled with the screen).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SettingsWindowStyle {
+    pub font_size: f32,
+    pub width: f32,
+    pub height: f32,
+}
+
+impl SettingsWindowStyle {
+    pub const DEFAULT: Self = Self {
+        font_size: 18.0,
+        width: 720.0,
+        height: 560.0,
     };
 }
 
@@ -212,6 +232,7 @@ pub struct ControlConfig {
     pub gamepad: InputBindings,
     pub mkb: InputBindings,
     pub wheel: WheelControl,
+    pub settings_window: SettingsWindowStyle,
 }
 
 impl ControlConfig {
@@ -219,6 +240,7 @@ impl ControlConfig {
         gamepad: InputBindings::GAMEPAD_DEFAULT,
         mkb: InputBindings::MKB_DEFAULT,
         wheel: WheelControl::DEFAULT,
+        settings_window: SettingsWindowStyle::DEFAULT,
     };
 
     /// Every `(section, key, value)` written to `Controls.ini`; the cursor
@@ -255,6 +277,23 @@ impl ControlConfig {
             SECTION_WHEEL,
             "DefaultEntryCount",
             w.default_entry_count.to_string(),
+        ));
+        out.push((
+            SECTION_WHEEL,
+            "ShowEditModeHints",
+            w.show_edit_mode_hints.to_string(),
+        ));
+        let sw = &self.settings_window;
+        out.push((
+            SECTION_SETTINGS_WINDOW,
+            "FontSize",
+            format!("{:.1}", sw.font_size),
+        ));
+        out.push((SECTION_SETTINGS_WINDOW, "Width", format!("{:.0}", sw.width)));
+        out.push((
+            SECTION_SETTINGS_WINDOW,
+            "Height",
+            format!("{:.0}", sw.height),
         ));
         out
     }
@@ -329,6 +368,14 @@ pub fn read_control_config(cfg: &dyn IniSource) {
     w.multi_tap_window = cfg.f32_or(SECTION_WHEEL, "MultiTapWindow", w.multi_tap_window);
     w.default_wheel_count = cfg.u32_or(SECTION_WHEEL, "DefaultWheelCount", w.default_wheel_count);
     w.default_entry_count = cfg.u32_or(SECTION_WHEEL, "DefaultEntryCount", w.default_entry_count);
+
+    w.show_edit_mode_hints =
+        cfg.bool_or(SECTION_WHEEL, "ShowEditModeHints", w.show_edit_mode_hints);
+
+    let sw = &mut control.settings_window;
+    sw.font_size = cfg.f32_or(SECTION_SETTINGS_WINDOW, "FontSize", sw.font_size);
+    sw.width = cfg.f32_or(SECTION_SETTINGS_WINDOW, "Width", sw.width);
+    sw.height = cfg.f32_or(SECTION_SETTINGS_WINDOW, "Height", sw.height);
 }
 
 #[cfg(test)]

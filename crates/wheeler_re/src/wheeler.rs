@@ -747,6 +747,20 @@ pub fn update(ui: &Ui, delta_time: f32) {
     }
     draw_wheel_indicator(center, w.wheels.len(), w.active_wheel_idx, args);
 
+    if w.edit_mode {
+        // The C++ version gave no cue that the wheel is editable.
+        let control = control::control();
+        let lines = if control.wheel.show_edit_mode_hints {
+            wheeler_imgui::edit_banner::hint_lines(&control)
+        } else {
+            Vec::new()
+        };
+        drop(control);
+        let scale = ui.io().display_size[1] / 1080.0;
+        let outer = style::style().wheel.outer_circle_radius;
+        wheeler_imgui::edit_banner::draw(center, outer, &lines, scale, args);
+    }
+
     unsafe {
         imgui::sys::ImDrawList_PopClipRect(draw_list);
         imgui::sys::igEndPopup();

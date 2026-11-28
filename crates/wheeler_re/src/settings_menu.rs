@@ -1,11 +1,12 @@
 //! The in-game settings window (`wheeler_imgui::settings`), opened with the
-//! `openSettings` binding. While it is open all input is taken from the game:
+//! `toggleSettings` binding. While it is open all input is taken from the game:
 //! the mouse drives ImGui and key presses feed binding recording.
 
 use std::sync::Mutex;
 
 use libskyrim::{skse_error, skse_message};
-use wheeler_core::control::{self, CONTROL_SETTINGS_PATH, ControlConfig};
+use wheeler_core::binding::{ComboDetector, Edge};
+use wheeler_core::control::{self, Action, CONTROL_SETTINGS_PATH, ControlConfig};
 use wheeler_core::ini::patch_ini;
 use wheeler_core::input_id::{KeyId, MOUSE_OFFSET};
 use wheeler_core::recorder::CANCEL_KEY;
@@ -20,6 +21,8 @@ struct Menu {
     mouse_pos: Option<[f32; 2]>,
     buttons: [bool; 3],
     wheel: f32,
+    /// `toggleSettings` only, to close the window with the same combo.
+    toggle: Option<ComboDetector<()>>,
 }
 
 static MENU: Mutex<Menu> = Mutex::new(Menu {
@@ -28,7 +31,11 @@ static MENU: Mutex<Menu> = Mutex::new(Menu {
     mouse_pos: None,
     buttons: [false; 3],
     wheel: 0.0,
+    toggle: None,
 });
+
+static EPOCH: std::sync::LazyLock<std::time::Instant> =
+    std::sync::LazyLock::new(std::time::Instant::now);
 
 fn lock() -> std::sync::MutexGuard<'static, Menu> {
     MENU.lock().unwrap_or_else(|e| e.into_inner())
@@ -38,13 +45,20 @@ pub fn is_open() -> bool {
     lock().window.is_open()
 }
 
-/// Opens or closes the window (`openSettings` binding).
+/// Opens or closes the window (`toggleSettings` binding).
 pub fn toggle() {
     let mut m = lock();
     if m.window.is_open() {
         m.window.close();
     } else {
-        m.window.open(&control::control());
+        let control = control::control();
+        m.window.open(&control);
+        let mut toggle = ComboDetector::new(control.wheel.multi_tap_window);
+        for bindings in [&control.mkb, &control.gamepad] {
+            toggle.bind(bindings.get(Action::ToggleSettings), Edge::Press, ());
+        }
+        drop(control);
+        m.toggle = Some(toggle);
         m.mouse_pos = None; // centred on the next frame
         m.buttons = [false; 3];
         if wheeler::is_wheeler_open() {
@@ -66,6 +80,17 @@ pub fn on_key(key: KeyId, down: bool) {
     let mut m = lock();
     if m.window.is_recording() {
         m.window.on_key(key, down);
+        return;
+    }
+    let now = EPOCH.elapsed().as_secs_f32();
+    let toggled = m
+        .toggle
+        .as_mut()
+        .is_some_and(|t| !t.on_key(key, down, now).is_empty());
+    if toggled {
+        m.window.close();
+        drop(m);
+        controls::reset_keys();
         return;
     }
     match key.checked_sub(MOUSE_OFFSET) {

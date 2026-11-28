@@ -134,11 +134,26 @@ impl SettingsWindow {
             return events;
         }
         let mut open = true;
+        // Sizes are designed for 1080p and scaled with the screen height.
+        let scale = ui.io().display_size[1] / 1080.0;
+        // The draft, so edits preview live.
+        let look = self.draft.settings_window;
         ui.window("Wheeler Settings")
-            .size([760.0, 640.0], Condition::FirstUseEver)
+            .size(
+                [look.width * scale, look.height * scale],
+                Condition::Appearing,
+            )
             .opened(&mut open)
             .collapsible(false)
-            .build(|| self.draw_contents(ui, &mut events));
+            .build(|| {
+                // The atlas font is large (it also draws the wheel text);
+                // shrink it for this window only.
+                let base = unsafe { (*imgui::sys::igGetFont()).FontSize };
+                if base > 0.0 {
+                    ui.set_window_font_scale(look.font_size * scale / base);
+                }
+                self.draw_contents(ui, &mut events);
+            });
         if !open {
             self.close();
             events.push(SettingsEvent::Closed);
@@ -192,6 +207,7 @@ impl SettingsWindow {
             "Hide game UI in edit mode",
             &mut w.hide_game_ui_in_edit_mode,
         );
+        ui.checkbox("Show key hints in edit mode", &mut w.show_edit_mode_hints);
         ui.slider("Default wheels (pages)", 1, 10, &mut w.default_wheel_count);
         ui.slider(
             "Default entries per wheel",
@@ -199,6 +215,14 @@ impl SettingsWindow {
             16,
             &mut w.default_entry_count,
         );
+        let look = &mut self.draft.settings_window;
+        ui.slider("Settings font size", 10.0, 40.0, &mut look.font_size);
+        if ui.button("Use current window size") {
+            let [w, h] = ui.window_size();
+            let scale = ui.io().display_size[1] / 1080.0;
+            look.width = w / scale;
+            look.height = h / scale;
+        }
 
         ui.separator();
         if ui.button("Save") {

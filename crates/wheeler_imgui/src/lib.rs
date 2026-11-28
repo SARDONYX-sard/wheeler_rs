@@ -4,6 +4,7 @@
 //! [`headless`] renders frames without a GPU so drawing code can be tested.
 
 pub mod drawer;
+pub mod edit_banner;
 pub mod headless;
 pub mod image;
 pub mod settings;

@@ -283,8 +283,12 @@ impl<A: Copy> ComboDetector<A> {
     pub fn on_key(&mut self, key: KeyId, down: bool, now: f32) -> Vec<A> {
         let mut out = self.tick(now);
         if down {
+            // Callers pass edges only, so a press of a key we think is held
+            // means its release was missed (e.g. during a loading screen):
+            // forget the stale state instead of ignoring the press.
             if self.held.contains(&key) {
-                return out; // repeat
+                self.on_release(key, &mut Vec::new());
+                self.held.retain(|&k| k != key);
             }
             self.held.push(key);
             self.on_press(key, now, &mut out);
@@ -427,8 +431,10 @@ mod tests {
         d.bind(KeyCombo::single(E), Edge::Press, "down");
         d.bind(KeyCombo::single(E), Edge::Release, "up");
         assert_eq!(d.on_key(E, true, 0.0), vec!["down"]);
-        assert_eq!(d.on_key(E, true, 0.1), Vec::<&str>::new()); // repeat
         assert_eq!(d.on_key(E, false, 0.2), vec!["up"]);
+        // A missed release must not swallow the next press.
+        assert_eq!(d.on_key(E, true, 1.0), vec!["down"]);
+        assert_eq!(d.on_key(E, true, 2.0), vec!["down"]);
         assert!(d.is_key_bound(E));
         assert!(!d.is_key_bound(Q));
     }
