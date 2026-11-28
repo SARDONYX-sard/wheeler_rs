@@ -369,15 +369,21 @@ pub fn init() {
     LazyLock::force(&WHEELER);
 }
 
-/// C++ `Wheeler::SetupDefaultWheels`: 2 wheels of 4 empty entries.
+/// C++ `Wheeler::SetupDefaultWheels`: `DefaultWheelCount` wheels of
+/// `DefaultEntryCount` empty entries (C++: fixed 2 x 4).
 pub fn setup_default_wheels() {
-    const DEFAULT_WHEELS: usize = 2;
-    const DEFAULT_ENTRIES: usize = 4;
+    let (wheels, entries) = {
+        let c = control::control();
+        (
+            c.wheel.default_wheel_count.max(1),
+            c.wheel.default_entry_count.max(1),
+        )
+    };
     let mut w = lock();
     w.wheels.clear();
-    for _ in 0..DEFAULT_WHEELS {
+    for _ in 0..wheels {
         let mut wheel = Wheel::new();
-        for _ in 0..DEFAULT_ENTRIES {
+        for _ in 0..entries {
             wheel.push_empty_entry();
         }
         w.wheels.push(wheel);

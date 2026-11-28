@@ -7,7 +7,7 @@
 //! - [`unique_id`] (`Utilities/UniqueIDHandler.cpp`)
 //! - [`wheeler`] (`Wheeler/Wheeler.cpp`)
 //! - [`serialization`] (`Serialization/SerializationEntry.cpp`)
-//! - [`mod_callback`] (`ModCallbackEventHandler.cpp`)
+//! - [`settings_menu`]: in-game settings window (replaces the C++ dMenu callbacks)
 //! - [`items`] (`Wheeler/WheelItems/*`)
 //! - [`settings`] (`Config.cpp` file loading; the values live in `wheeler_core`)
 //! - [`textures`] (`Rendering/TextureManager.cpp`)
@@ -21,10 +21,10 @@ pub mod hooks;
 pub mod host;
 pub mod input;
 pub mod items;
-pub mod mod_callback;
 pub mod render;
 pub mod serialization;
 pub mod settings;
+pub mod settings_menu;
 pub mod textures;
 pub mod unique_id;
 pub mod wheeler;
@@ -76,7 +76,7 @@ pub unsafe fn skse_plugin_rust_entry(skse: &LoadInterface) -> Result<(), ()> {
 }
 
 /// Reads `Styles.ini` / `Controls.ini`, scales them to the viewport and
-/// rebinds the keys (data loaded, and dMenu's "update settings").
+/// rebinds the keys.
 pub fn reload_settings() {
     settings::read_style_config();
     settings::read_control_config();
@@ -96,7 +96,6 @@ fn register_messages() {
         reload_settings();
         render::on_data_loaded(); // Texture::Init
         settings::load_translations();
-        mod_callback::register();
     });
 
     plugin::on_new_game(|_| {

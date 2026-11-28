@@ -1,75 +1,183 @@
 //! Port of the control part of `Config.h` / `Config.cpp` (`Controls.ini`).
 //! Styling and animation live in [`crate::style`].
+//!
+//! Bindings are [`KeyCombo`]s (chords and multi-taps); the C++ single key
+//! ids still parse.
 
 use std::sync::{LazyLock, RwLock, RwLockReadGuard};
 
+use crate::binding::KeyCombo;
 use crate::ini::{IniExt, IniSource};
 
 pub const CONTROL_SETTINGS_PATH: &str = "Data\\SKSE\\Plugins\\wheeler\\Controls.ini";
 
-/// `Config::InputBindings::{GamePad, MKB}` (key ids follow `Input.cpp`'s
-/// keyboard / mouse(+256) / gamepad(+266) numbering; `0` = unmapped).
-#[derive(Debug, Clone, Copy)]
+pub const SECTION_GAMEPAD: &str = "InputBindings.GamePad";
+pub const SECTION_MKB: &str = "InputBindings.MKB";
+pub const SECTION_WHEEL: &str = "Control.Wheel";
+
+/// Everything a key combo can be bound to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Action {
+    ToggleWheel,
+    ToggleWheelIfInInventory,
+    ToggleWheelIfNotInInventory,
+    NextWheel,
+    PrevWheel,
+    NextItem,
+    PrevItem,
+    ActivatePrimary,
+    ActivateSecondary,
+    AddWheel,
+    AddEmptyEntry,
+    MoveEntryForward,
+    MoveEntryBack,
+    MoveWheelForward,
+    MoveWheelBack,
+    /// Opens the settings window (new in the Rust port).
+    OpenSettings,
+}
+
+impl Action {
+    pub const COUNT: usize = 16;
+    pub const ALL: [Self; Self::COUNT] = [
+        Self::ToggleWheel,
+        Self::ToggleWheelIfInInventory,
+        Self::ToggleWheelIfNotInInventory,
+        Self::NextWheel,
+        Self::PrevWheel,
+        Self::NextItem,
+        Self::PrevItem,
+        Self::ActivatePrimary,
+        Self::ActivateSecondary,
+        Self::AddWheel,
+        Self::AddEmptyEntry,
+        Self::MoveEntryForward,
+        Self::MoveEntryBack,
+        Self::MoveWheelForward,
+        Self::MoveWheelBack,
+        Self::OpenSettings,
+    ];
+
+    /// The `Controls.ini` key.
+    pub const fn ini_key(self) -> &'static str {
+        match self {
+            Self::ToggleWheel => "toggleWheel",
+            Self::ToggleWheelIfInInventory => "toggleWheelIfInInventory",
+            Self::ToggleWheelIfNotInInventory => "toggleWheelIfNotInInventory",
+            Self::NextWheel => "nextWheel",
+            Self::PrevWheel => "prevWheel",
+            Self::NextItem => "nextItem",
+            Self::PrevItem => "prevItem",
+            Self::ActivatePrimary => "activatePrimary",
+            Self::ActivateSecondary => "activateSecondary",
+            Self::AddWheel => "addWheel",
+            Self::AddEmptyEntry => "addEmptyEntry",
+            Self::MoveEntryForward => "moveEntryForward",
+            Self::MoveEntryBack => "moveEntryBack",
+            Self::MoveWheelForward => "moveWheelForward",
+            Self::MoveWheelBack => "moveWheelBack",
+            Self::OpenSettings => "openSettings",
+        }
+    }
+
+    /// Human-readable name for the settings window.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::ToggleWheel => "Toggle wheel",
+            Self::ToggleWheelIfInInventory => "Toggle wheel (in inventory)",
+            Self::ToggleWheelIfNotInInventory => "Toggle wheel (outside inventory)",
+            Self::NextWheel => "Next wheel",
+            Self::PrevWheel => "Previous wheel",
+            Self::NextItem => "Next item",
+            Self::PrevItem => "Previous item",
+            Self::ActivatePrimary => "Activate (primary)",
+            Self::ActivateSecondary => "Activate (secondary)",
+            Self::AddWheel => "Add wheel (edit mode)",
+            Self::AddEmptyEntry => "Add entry (edit mode)",
+            Self::MoveEntryForward => "Move entry forward (edit mode)",
+            Self::MoveEntryBack => "Move entry back (edit mode)",
+            Self::MoveWheelForward => "Move wheel forward (edit mode)",
+            Self::MoveWheelBack => "Move wheel back (edit mode)",
+            Self::OpenSettings => "Open settings",
+        }
+    }
+
+    const fn index(self) -> usize {
+        self as usize
+    }
+}
+
+/// `Config::InputBindings::{GamePad, MKB}`: one combo per [`Action`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InputBindings {
-    pub next_wheel: u32,
-    pub prev_wheel: u32,
-    pub toggle_wheel: u32,
-    pub next_item: u32,
-    pub prev_item: u32,
-    pub activate_primary: u32,
-    pub activate_secondary: u32,
-    pub add_wheel: u32,
-    pub add_empty_entry: u32,
-    pub move_entry_forward: u32,
-    pub move_entry_back: u32,
-    pub move_wheel_forward: u32,
-    pub move_wheel_back: u32,
-    /// Gamepad only.
-    pub toggle_wheel_if_in_inventory: u32,
-    /// Gamepad only.
-    pub toggle_wheel_if_not_in_inventory: u32,
+    combos: [KeyCombo; Action::COUNT],
 }
 
 impl InputBindings {
-    pub const GAMEPAD_DEFAULT: Self = Self {
-        next_wheel: 281,         // right trigger
-        prev_wheel: 0,           // unmapped
-        toggle_wheel: 280,       // left trigger
-        next_item: 269,          // DPAD right
-        prev_item: 268,          // DPAD left
-        activate_primary: 275,   // right shoulder
-        activate_secondary: 274, // left shoulder
-        add_wheel: 0,
-        add_empty_entry: 0,
-        move_entry_forward: 0,
-        move_entry_back: 0,
-        move_wheel_forward: 0,
-        move_wheel_back: 0,
-        toggle_wheel_if_in_inventory: 0,
-        toggle_wheel_if_not_in_inventory: 0,
+    /// From single key ids in [`Action::ALL`] order (`0` = unbound).
+    const fn from_keys(keys: [u32; Action::COUNT]) -> Self {
+        let mut combos = [KeyCombo::NONE; Action::COUNT];
+        let mut i = 0;
+        while i < Action::COUNT {
+            combos[i] = KeyCombo::single(keys[i]);
+            i += 1;
+        }
+        Self { combos }
+    }
+
+    pub const GAMEPAD_DEFAULT: Self = Self::from_keys([
+        280, // toggle: left trigger
+        0,   // toggle if in inventory
+        0,   // toggle if not in inventory
+        281, // next wheel: right trigger
+        0,   // prev wheel
+        269, // next item: DPAD right
+        268, // prev item: DPAD left
+        275, // activate primary: right shoulder
+        274, // activate secondary: left shoulder
+        0, 0, 0, 0, 0, 0, // edit-mode actions
+        0, // open settings
+    ]);
+
+    pub const MKB_DEFAULT: Self = {
+        let mut b = Self::from_keys([
+            58,   // toggle: caps lock
+            0,    // toggle if in inventory
+            0,    // toggle if not in inventory
+            0x12, // next wheel: E
+            0x10, // prev wheel: Q
+            265,  // next item: mouse wheel down
+            264,  // prev item: mouse wheel up
+            256,  // activate primary: left mouse button
+            257,  // activate secondary: right mouse button
+            49,   // add wheel: N
+            50,   // add entry: M
+            200,  // move entry forward: up arrow
+            208,  // move entry back: down arrow
+            205,  // move wheel forward: right arrow
+            203,  // move wheel back: left arrow
+            0,    // open settings (below)
+        ]);
+        // Left shift + F10.
+        b.combos[Action::OpenSettings.index()] = KeyCombo::chord2(0x2A, 0x44);
+        b
     };
 
-    pub const MKB_DEFAULT: Self = Self {
-        next_wheel: 0x12,        // E
-        prev_wheel: 0x10,        // Q
-        toggle_wheel: 58,        // caps lock
-        prev_item: 264,          // mouse wheel up
-        next_item: 265,          // mouse wheel down
-        activate_primary: 256,   // left mouse button
-        activate_secondary: 257, // right mouse button
-        add_wheel: 49,           // N
-        add_empty_entry: 50,     // M
-        move_entry_forward: 200, // up arrow
-        move_entry_back: 208,    // down arrow
-        move_wheel_forward: 205, // right arrow
-        move_wheel_back: 203,    // left arrow
-        toggle_wheel_if_in_inventory: 0,
-        toggle_wheel_if_not_in_inventory: 0,
-    };
+    pub fn get(&self, action: Action) -> KeyCombo {
+        self.combos[action.index()]
+    }
+
+    pub fn set(&mut self, action: Action, combo: KeyCombo) {
+        self.combos[action.index()] = combo;
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = (Action, KeyCombo)> + '_ {
+        Action::ALL.iter().map(|&a| (a, self.get(a)))
+    }
 }
 
 /// `Config::Control::Wheel`
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct WheelControl {
     /// Radius that bounds the mouse cursor; grows with each entry so MKB users
     /// don't rotate the cursor too fast.
@@ -79,6 +187,12 @@ pub struct WheelControl {
     /// close it on a second press.
     pub toggle_hold_threshold: f32,
     pub hide_game_ui_in_edit_mode: bool,
+    /// Seconds allowed between taps of a multi-tap binding.
+    pub multi_tap_window: f32,
+    /// Wheels (pages) created for a new game / "Reset all wheels".
+    pub default_wheel_count: u32,
+    /// Empty entries per default wheel.
+    pub default_entry_count: u32,
 }
 
 impl WheelControl {
@@ -87,10 +201,13 @@ impl WheelControl {
         double_activate_disable: true,
         toggle_hold_threshold: 0.25,
         hide_game_ui_in_edit_mode: true,
+        multi_tap_window: 0.25,
+        default_wheel_count: 2,
+        default_entry_count: 8,
     };
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ControlConfig {
     pub gamepad: InputBindings,
     pub mkb: InputBindings,
@@ -103,6 +220,44 @@ impl ControlConfig {
         mkb: InputBindings::MKB_DEFAULT,
         wheel: WheelControl::DEFAULT,
     };
+
+    /// Every `(section, key, value)` written to `Controls.ini`; the cursor
+    /// radius is left out because it is stored unscaled in the file.
+    pub fn ini_entries(&self) -> Vec<(&'static str, &'static str, String)> {
+        let mut out = Vec::new();
+        for (section, bindings) in [(SECTION_GAMEPAD, &self.gamepad), (SECTION_MKB, &self.mkb)] {
+            for (action, combo) in bindings.iter() {
+                out.push((section, action.ini_key(), combo.to_ini_string()));
+            }
+        }
+        let w = &self.wheel;
+        out.push((
+            SECTION_WHEEL,
+            "ToggleHoldThreshold",
+            format!("{:.6}", w.toggle_hold_threshold),
+        ));
+        out.push((
+            SECTION_WHEEL,
+            "MultiTapWindow",
+            format!("{:.6}", w.multi_tap_window),
+        ));
+        out.push((
+            SECTION_WHEEL,
+            "HideGameUIInEditMode",
+            w.hide_game_ui_in_edit_mode.to_string(),
+        ));
+        out.push((
+            SECTION_WHEEL,
+            "DefaultWheelCount",
+            w.default_wheel_count.to_string(),
+        ));
+        out.push((
+            SECTION_WHEEL,
+            "DefaultEntryCount",
+            w.default_entry_count.to_string(),
+        ));
+        out
+    }
 }
 
 static CONTROL: LazyLock<RwLock<ControlConfig>> =
@@ -110,6 +265,15 @@ static CONTROL: LazyLock<RwLock<ControlConfig>> =
 
 pub fn control() -> RwLockReadGuard<'static, ControlConfig> {
     CONTROL.read().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Replaces the bindings and tap/hold settings (settings window), keeping the
+/// viewport-scaled cursor radius.
+pub fn set_control(new: &ControlConfig) {
+    let mut control = CONTROL.write().unwrap_or_else(|e| e.into_inner());
+    let radius = control.wheel.cursor_radius_per_entry;
+    *control = *new;
+    control.wheel.cursor_radius_per_entry = radius;
 }
 
 /// Part of C++ `Config::OffsetSizingToViewport` (see [`crate::style`]).
@@ -121,30 +285,14 @@ pub(crate) fn scale_cursor_radius(scale: f32) {
         .cursor_radius_per_entry *= scale;
 }
 
-fn read_bindings(cfg: &dyn IniSource, section: &str, b: &mut InputBindings, gamepad: bool) {
-    let read = |key: &str, value: &mut u32| *value = cfg.u32_or(section, key, *value);
-    read("nextWheel", &mut b.next_wheel);
-    read("prevWheel", &mut b.prev_wheel);
-    read("toggleWheel", &mut b.toggle_wheel);
-    read("nextItem", &mut b.next_item);
-    read("prevItem", &mut b.prev_item);
-    read("activatePrimary", &mut b.activate_primary);
-    read("activateSecondary", &mut b.activate_secondary);
-    read("addWheel", &mut b.add_wheel);
-    read("addEmptyEntry", &mut b.add_empty_entry);
-    read("moveEntryForward", &mut b.move_entry_forward);
-    read("moveEntryBack", &mut b.move_entry_back);
-    read("moveWheelForward", &mut b.move_wheel_forward);
-    read("moveWheelBack", &mut b.move_wheel_back);
-    if gamepad {
-        read(
-            "toggleWheelIfInInventory",
-            &mut b.toggle_wheel_if_in_inventory,
-        );
-        read(
-            "toggleWheelIfNotInInventory",
-            &mut b.toggle_wheel_if_not_in_inventory,
-        );
+fn read_bindings(cfg: &dyn IniSource, section: &str, b: &mut InputBindings) {
+    for action in Action::ALL {
+        if let Some(combo) = cfg
+            .value(section, action.ini_key())
+            .and_then(KeyCombo::parse)
+        {
+            b.set(action, combo);
+        }
     }
 }
 
@@ -154,28 +302,64 @@ pub fn read_control_config(cfg: &dyn IniSource) {
     let mut control = CONTROL.write().unwrap_or_else(|e| e.into_inner());
     // Start from the defaults (see `style::read_style_config`).
     *control = ControlConfig::DEFAULT;
-    read_bindings(cfg, "InputBindings.GamePad", &mut control.gamepad, true);
-    read_bindings(cfg, "InputBindings.MKB", &mut control.mkb, false);
+    read_bindings(cfg, SECTION_GAMEPAD, &mut control.gamepad);
+    read_bindings(cfg, SECTION_MKB, &mut control.mkb);
 
-    let wheel = &mut control.wheel;
-    wheel.cursor_radius_per_entry = cfg.f32_or(
-        "Control.Wheel",
+    let w = &mut control.wheel;
+    w.cursor_radius_per_entry = cfg.f32_or(
+        SECTION_WHEEL,
         "CursorRadiusPerEntry",
-        wheel.cursor_radius_per_entry,
+        w.cursor_radius_per_entry,
     );
-    wheel.double_activate_disable = cfg.bool_or(
-        "Control.Wheel",
+    w.double_activate_disable = cfg.bool_or(
+        SECTION_WHEEL,
         "DoubleActivateDisable",
-        wheel.double_activate_disable,
+        w.double_activate_disable,
     );
-    wheel.toggle_hold_threshold = cfg.f32_or(
-        "Control.Wheel",
+    w.toggle_hold_threshold = cfg.f32_or(
+        SECTION_WHEEL,
         "ToggleHoldThreshold",
-        wheel.toggle_hold_threshold,
+        w.toggle_hold_threshold,
     );
-    wheel.hide_game_ui_in_edit_mode = cfg.bool_or(
-        "Control.Wheel",
+    w.hide_game_ui_in_edit_mode = cfg.bool_or(
+        SECTION_WHEEL,
         "HideGameUIInEditMode",
-        wheel.hide_game_ui_in_edit_mode,
+        w.hide_game_ui_in_edit_mode,
     );
+    w.multi_tap_window = cfg.f32_or(SECTION_WHEEL, "MultiTapWindow", w.multi_tap_window);
+    w.default_wheel_count = cfg.u32_or(SECTION_WHEEL, "DefaultWheelCount", w.default_wheel_count);
+    w.default_entry_count = cfg.u32_or(SECTION_WHEEL, "DefaultEntryCount", w.default_entry_count);
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::ini::MemoryIni;
+
+    #[test]
+    fn reads_cpp_and_combo_syntax() {
+        let ini = MemoryIni::parse(
+            "[InputBindings.MKB]
+toggleWheel = 58
+nextWheel = 0x2A+0x12*2
+[Control.Wheel]
+MultiTapWindow = 0.4
+",
+        );
+        read_control_config(&ini);
+        let c = *control();
+        assert_eq!(c.mkb.get(Action::ToggleWheel), KeyCombo::single(58));
+        assert_eq!(
+            c.mkb.get(Action::NextWheel),
+            KeyCombo::new(&[0x2A, 0x12], 2).unwrap()
+        );
+        assert_eq!(c.mkb.get(Action::PrevWheel), KeyCombo::single(0x10)); // default kept
+        assert_eq!(c.wheel.multi_tap_window, 0.4);
+        assert!(
+            c.ini_entries()
+                .contains(&(SECTION_MKB, "nextWheel", "18+42*2".to_owned()))
+        );
+    }
 }

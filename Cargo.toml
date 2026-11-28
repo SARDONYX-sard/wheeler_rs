@@ -19,7 +19,7 @@ resolver        = "3"
 libskyrim = { git = "https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git", rev = "bb47b92", features = ["se", "ae"] }
 # libskyrim = { path = "../CommonLib-SkyrimLib/libskyrim", features = ["se", "ae"] }
 
-imgui = "0.12.0"
+imgui = { version = "0.12.0", features = ["tables-api"] }
 resvg = { version = "0.45.1", default-features = false }
 rex_com = { git = "https://github.com/SARDONYX-forks/CommonLib-SkyrimLib.git", rev = "bb47b92" }
 # rex_com = { path = "../CommonLib-SkyrimLib/rex_com" }

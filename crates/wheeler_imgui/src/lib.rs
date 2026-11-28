@@ -6,6 +6,7 @@
 pub mod drawer;
 pub mod headless;
 pub mod image;
+pub mod settings;
 pub mod wheel;
 
 #[cfg(test)]

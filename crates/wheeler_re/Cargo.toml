@@ -1,20 +1,20 @@
 [package]
-name = "wheeler_re"
-description = "Wheeler (quick-access wheel menu) for Skyrim, written in Rust"
-edition.workspace = true
-license.workspace = true
+name                   = "wheeler_re"
+description            = "Wheeler (quick-access wheel menu) for Skyrim, written in Rust"
+edition.workspace      = true
+license.workspace      = true
 rust-version.workspace = true
-version.workspace = true
-publish = false
+version.workspace      = true
+publish                = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-imgui = { workspace = true }
-libskyrim = { workspace = true }
-wheeler_core = { path = "../wheeler_core" }
-wheeler_dx11 = { path = "../wheeler_dx11" }
+imgui         = { workspace = true }
+libskyrim     = { workspace = true }
+wheeler_core  = { path = "../wheeler_core" }
+wheeler_dx11  = { path = "../wheeler_dx11" }
 wheeler_imgui = { path = "../wheeler_imgui" }
 
 [dependencies.windows-sys]

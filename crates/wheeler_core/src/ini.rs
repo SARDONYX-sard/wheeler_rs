@@ -98,3 +98,91 @@ mod tests {
         assert_eq!(ini.u32_or("A", "c", 7), 7);
     }
 }
+
+/// Sets `entries` (`section`, `key`, `value`) in INI `text`, keeping every
+/// other line (comments, unknown keys, order). Missing keys are appended to
+/// their section; missing sections at the end.
+pub fn patch_ini(text: &str, entries: &[(&str, &str, String)]) -> String {
+    let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
+    let section_of = |line: &str| -> Option<String> {
+        let t = line.trim().trim_start_matches('\u{feff}');
+        t.strip_prefix('[')
+            .and_then(|s| s.strip_suffix(']'))
+            .map(|s| s.trim().to_owned())
+    };
+    for (section, key, value) in entries {
+        let new_line = format!("{key} = {value}");
+        let mut in_section = false;
+        let mut header = None;
+        let mut last_content = None; // last non-empty line of the section
+        let mut replaced = false;
+        for (i, line) in lines.iter_mut().enumerate() {
+            if let Some(name) = section_of(line) {
+                in_section = name.eq_ignore_ascii_case(section);
+                if in_section && header.is_none() {
+                    header = Some(i);
+                }
+                continue;
+            }
+            if !in_section {
+                continue;
+            }
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            last_content = Some(i);
+            if trimmed.starts_with(';') || trimmed.starts_with('#') {
+                continue;
+            }
+            if let Some((k, _)) = trimmed.split_once('=')
+                && k.trim().eq_ignore_ascii_case(key)
+            {
+                *line = new_line.clone();
+                replaced = true;
+                break;
+            }
+        }
+        if replaced {
+            continue;
+        }
+        match (last_content, header) {
+            (Some(i), _) | (None, Some(i)) => lines.insert(i + 1, new_line),
+            (None, None) => {
+                if lines.last().is_some_and(|l| !l.trim().is_empty()) {
+                    lines.push(String::new());
+                }
+                lines.push(format!("[{section}]"));
+                lines.push(new_line);
+            }
+        }
+    }
+    let mut out = lines.join("\n");
+    out.push('\n');
+    out
+}
+
+#[cfg(test)]
+mod patch_tests {
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+
+    #[test]
+    fn patches_keeping_comments() {
+        let text = "\u{feff}[A]\n; comment\nx = 1\n\n[B]\ny = 2\n";
+        let out = patch_ini(
+            text,
+            &[
+                ("A", "x", "5".into()),
+                ("A", "z", "6".into()),
+                ("b", "Y", "7".into()),
+                ("C", "w", "8".into()),
+            ],
+        );
+        assert_eq!(
+            out,
+            "\u{feff}[A]\n; comment\nx = 5\nz = 6\n\n[B]\nY = 7\n\n[C]\nw = 8\n"
+        );
+    }
+}

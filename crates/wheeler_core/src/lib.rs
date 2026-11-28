@@ -3,11 +3,13 @@
 //! libskyrim.
 
 pub mod animation;
+pub mod binding;
 pub mod control;
 pub mod custom_icon;
 pub mod geometry;
 pub mod ini;
 pub mod input_id;
+pub mod recorder;
 pub mod save;
 pub mod sound;
 pub mod style;

@@ -104,11 +104,7 @@ fn build_main_dll(args: BuildArgs) -> Result<()> {
             None,
         )?;
     } else {
-        run_command(
-            "cargo",
-            &["build", "-p", DLL_NAME, "--locked"],
-            None,
-        )?;
+        run_command("cargo", &["build", "-p", DLL_NAME, "--locked"], None)?;
     };
 
     let dest_dir = args.dest.unwrap_or(args.dest_mode.path().to_path_buf());

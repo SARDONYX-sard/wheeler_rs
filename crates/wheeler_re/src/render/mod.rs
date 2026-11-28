@@ -287,10 +287,12 @@ extern "C" fn dxgi_present_thunk(p1: u32) {
         (rect.bottom - rect.top) as f32,
     ];
     io.delta_time = delta;
+    crate::settings_menu::prepare_frame(io);
 
     let ui = state.imgui.new_frame();
     // do stuff (C++ `RenderManager::draw`)
     crate::wheeler::update(ui, delta);
+    crate::settings_menu::draw(ui);
     // TODO: TimeFloatInterpolatorManager::Update(deltaTime)
 
     // epilogue
